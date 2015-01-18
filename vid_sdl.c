@@ -118,6 +118,27 @@ static vid_mode_t desktop_mode;
 #endif
 #endif
 
+static qboolean isNumpadKey(int key)
+{
+	switch(key)
+	{
+		case SDLK_KP_1:
+		case SDLK_KP_2:
+		case SDLK_KP_3:
+		case SDLK_KP_4:
+		case SDLK_KP_5:
+		case SDLK_KP_6:
+		case SDLK_KP_7:
+		case SDLK_KP_8:
+		case SDLK_KP_9:
+		case SDLK_KP_0:
+		case SDLK_KP_PERIOD:
+			return true;
+		default:
+			return false;
+	}
+}
+
 static int MapKey( unsigned int sdlkey )
 {
 	switch(sdlkey)
@@ -1108,6 +1129,27 @@ void Sys_SendKeyEvents( void )
 				break;
 			case SDL_KEYDOWN:
 			case SDL_KEYUP:
+
+				// Workaround for SDL 1.2.14 not being able to recognize numlock state on start
+				// or when it gets changed outside the application
+				if(event.key.state == SDL_PRESSED)
+				if(isNumpadKey(event.key.keysym.sym))
+				{
+					// if the numpad key press generates a char too
+					if(event.key.keysym.unicode)
+					{
+						// numlock is ON, sync internal numlock state if needed
+						if(!(SDL_GetModState() & KMOD_NUM))
+							SDL_SetModState(SDL_GetModState() | KMOD_NUM);
+					}
+					else
+					{
+						// numlock is OFF, sync internal numlock state if needed
+						if(SDL_GetModState() & KMOD_NUM)
+							SDL_SetModState(SDL_GetModState() & ~KMOD_NUM);
+					}
+				}
+
 				keycode = MapKey(event.key.keysym.sym);
 				if (!VID_JoyBlockEmulatedKeys(keycode))
 				{
@@ -1235,6 +1277,28 @@ void Sys_SendKeyEvents( void )
 				else
 					Con_DPrintf("SDL_Event: SDL_KEYUP %i\n", event.key.keysym.sym);
 #endif
+
+				// Workaround for SDL 2.0.3 not being able to recognize numlock state on start
+				// or when it gets changed outside the application
+				if(event.key.state == SDL_PRESSED)
+				if(isNumpadKey(event.key.keysym.sym))
+				{
+					SDL_Event next_event;
+					// if the numpad key press generates a SDL_TEXTINPUT event too
+					if(SDL_PeepEvents(&next_event, 1, SDL_PEEKEVENT, SDL_TEXTINPUT, SDL_TEXTINPUT) > 0)
+					{
+						// numlock is ON, sync internal numlock state if needed
+						if(!(SDL_GetModState() & KMOD_NUM))
+							SDL_SetModState(SDL_GetModState() | KMOD_NUM);
+					}
+					else
+					{
+						// numlock is OFF, sync internal numlock state if needed
+						if(SDL_GetModState() & KMOD_NUM)
+							SDL_SetModState(SDL_GetModState() & ~KMOD_NUM);
+					}
+				}
+
 				keycode = MapKey(event.key.keysym.sym);
 				if (!VID_JoyBlockEmulatedKeys(keycode))
 					Key_Event(keycode, 0, (event.key.state == SDL_PRESSED));
