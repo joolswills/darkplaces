@@ -1745,6 +1745,7 @@ Key_Event (int key, int ascii, qboolean down)
 	qboolean q;
 	keydest_t keydest = key_dest;
 	char vabuf[1024];
+	static qboolean wait_toggleconsole_up;
 
 	if (key < 0 || key >= MAX_KEYS)
 		return;
@@ -1788,6 +1789,12 @@ Key_Event (int key, int ascii, qboolean down)
 	}
 
 	if(keydest == key_void)
+	{
+		wait_toggleconsole_up = false;
+		return;
+	}
+
+	if(wait_toggleconsole_up)
 		return;
 
 	// key_consoleactive is a flag not a key_dest because the console is a
@@ -1919,6 +1926,7 @@ Key_Event (int key, int ascii, qboolean down)
 		{
 			Con_ToggleConsole_f ();
 			tbl_keydest[key] = key_void; // key release should go nowhere (especially not to key_menu or key_game)
+			wait_toggleconsole_up = true;
 			return;
 		}
 	}
